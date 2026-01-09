@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  ocr-api:
+    build: .
+    container_name: ocr-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - HF_TOKEN=${HF_TOKEN}
+      - MODEL_NAME=${MODEL_NAME:-deepseek-ai/DeepSeek-OCR}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+    volumes:
+      - .:/app
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    restart: unless-stopped
+    # Enable GPU support
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+python-multipart
+Pillow
+pydantic
+python-dotenv
+
+# OCR Engine (CPU-friendly)
+easyocr
+
+# PDF Processing
+PyMuPDF
+
+# Image Processing
+numpy
