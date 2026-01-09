@@ -11,5 +11,8 @@ easyocr
 # PDF Processing
 PyMuPDF
 
+# DOCX Processing
+python-docx
+
 # Image Processing
 numpy

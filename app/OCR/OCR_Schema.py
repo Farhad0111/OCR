@@ -18,6 +18,21 @@ class PDFSummaryResponse(BaseModel):
     success: bool
 
 
+class TextSummaryResponse(BaseModel):
+    """Response schema for text file summary."""
+    filename: str
+    summary: str
+    success: bool
+
+
+class DocxSummaryResponse(BaseModel):
+    """Response schema for DOCX file summary."""
+    filename: str
+    summary: str
+    total_paragraphs: int
+    success: bool
+
+
 class OCRErrorResponse(BaseModel):
     """Response schema for OCR errors."""
     detail: str
