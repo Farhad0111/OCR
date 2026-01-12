@@ -9,28 +9,29 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from app.OCR import router as ocr_router, OCRService
+from app.VectorDatabase import router as vectordb_router, VectorDBService
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan context manager to initialize model on startup."""
-    # Initialize model on startup
-    print("Initializing OCR model...")
+    """Lifespan context manager to initialize services on startup."""
+    # Initialize VectorDB on startup
+    print("Initializing Vector Database...")
     try:
-        OCRService.initialize_model()
-        print("Model initialized successfully!")
+        VectorDBService.initialize()
+        print("Vector Database initialized successfully!")
     except Exception as e:
-        print(f"Warning: Model initialization failed: {e}")
-        print("Model will be loaded on first request.")
+        print(f"Warning: Vector Database initialization failed: {e}")
+        print("VectorDB will be initialized on first request.")
+    
     yield
     # Cleanup on shutdown (if needed)
-    print("Shutting down OCR API...")
+    print("Shutting down API...")
 
 
 app = FastAPI(
-    title="OCR API",
-    description="API for Optical Character Recognition using DeepSeek-OCR GGUF",
+    title="Vector Database API",
+    description="API for Vector Database with OpenAI-powered Q&A",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -44,17 +45,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include OCR routes
-app.include_router(ocr_router, prefix="/api/v1")
+# Include Vector Database routes
+app.include_router(vectordb_router, prefix="/api/v1")
 
 
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {
-        "message": "Welcome to OCR API powered by DeepSeek-OCR GGUF",
-        "docs": "/docs",
-        "model": os.getenv("MODEL_REPO", "NexaAI/DeepSeek-OCR-GGUF")
+        "message": "Welcome to Vector Database API",
+        "docs": "/docs"
     }
 
 
@@ -62,6 +62,5 @@ async def root():
 async def health_check():
     """Health check endpoint."""
     return {
-        "status": "healthy",
-        "model_loaded": OCRService._initialized
+        "status": "healthy"
     }

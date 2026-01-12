@@ -16,3 +16,13 @@ python-docx
 
 # Image Processing
 numpy
+
+# Vector Database
+chromadb
+
+# LLM for Question Answering
+llama-cpp-python
+huggingface_hub
+
+# OpenAI for AI-powered answers
+openai

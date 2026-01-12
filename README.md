@@ -1,40 +1,41 @@
 # OCR API
 
-A FastAPI-based OCR (Optical Character Recognition) service powered by **DeepSeek-OCR**.
+A FastAPI-based OCR (Optical Character Recognition) service powered by **EasyOCR** (CPU-friendly).
 
 ## Project Structure
 
 ```
 ├── app/
 │   └── OCR/
-│          ├── OCR.py          # Service logic (DeepSeek-OCR)
+│          ├── OCR.py          # Service logic (EasyOCR)
 │          ├── OCR_Route.py    # API routes
 │          └── OCR_Schema.py   # Pydantic schemas
 │       
 ├── main.py                    # FastAPI application
 ├── requirements.txt           # Python dependencies
-├── Dockerfile                 # Docker configuration (CUDA enabled)
-├── docker-compose.yml         # Docker Compose setup with GPU
+├── Dockerfile                 # Docker configuration
+├── docker-compose.yml         # Docker Compose setup
 ├── .env                       # Environment variables
 └── README.md                  # This file
 ```
 
 ## Requirements
 
-- **GPU**: NVIDIA GPU with CUDA support (recommended)
 - **Python**: 3.10+
-- **CUDA**: 12.1+ (for GPU inference)
+- **CPU**: Works on CPU (no GPU required)
 
 ## Installation
 
 ### Local Setup
 
-1. Create a `.env` file with your Hugging Face API key:
+1. Create a `.env` file:
    ```env
-   HUGGINGFACE_API_KEY=your_hf_token_here
-   HF_TOKEN=your_hf_token_here
-   MODEL_NAME=deepseek-ai/DeepSeek-OCR
-   CUDA_VISIBLE_DEVICES=0
+   APP_NAME=OCR API
+   APP_ENV=development
+   DEBUG=True
+   HOST=0.0.0.0
+   PORT=8000
+   MAX_SUMMARY_SENTENCES=5
    ```
 
 2. Install Python dependencies:
@@ -47,10 +48,9 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **DeepSee
    uvicorn main:app --reload
    ```
 
-### Docker Setup (GPU)
+### Docker Setup
 
-1. Ensure NVIDIA Docker runtime is installed
-2. Build and run with Docker Compose:
+1. Build and run with Docker Compose:
    ```bash
    docker-compose up --build
    ```
@@ -63,12 +63,12 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **DeepSee
 | `/health` | GET | Health check (shows model status) |
 | `/api/v1/ocr/summarize-image` | POST | Summarize content from an image |
 | `/api/v1/ocr/summarize-pdf` | POST | Summarize content from a PDF |
+| `/api/v1/ocr/summarize-txt` | POST | Summarize content from a text file |
+| `/api/v1/ocr/summarize-docx` | POST | Summarize content from a Word document |
 
 ## Usage Examples
 
 ### Summarize an Image
-
-**Request:** Upload an image file
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/ocr/summarize-image" \
@@ -79,14 +79,12 @@ curl -X POST "http://localhost:8000/api/v1/ocr/summarize-image" \
 ```json
 {
   "filename": "your_image.png",
-  "summary": "This image contains...",
+  "summary": "Extracted text summary...\n\n--- Statistics ---\nSummary: 5 of 10 sentences\nTotal Words: 150\nTotal Characters: 850",
   "success": true
 }
 ```
 
 ### Summarize a PDF
-
-**Request:** Upload a PDF file
 
 ```bash
 curl -X POST "http://localhost:8000/api/v1/ocr/summarize-pdf" \
@@ -97,11 +95,54 @@ curl -X POST "http://localhost:8000/api/v1/ocr/summarize-pdf" \
 ```json
 {
   "filename": "document.pdf",
-  "summary": "This document discusses...",
+  "summary": "Document summary...",
   "total_pages": 5,
   "success": true
 }
 ```
+
+### Summarize a Text File
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/ocr/summarize-txt" \
+  -F "file=@notes.txt"
+```
+
+**Response:**
+```json
+{
+  "filename": "notes.txt",
+  "summary": "Text file summary...",
+  "success": true
+}
+```
+
+### Summarize a DOCX File
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/ocr/summarize-docx" \
+  -F "file=@report.docx"
+```
+
+**Response:**
+```json
+{
+  "filename": "report.docx",
+  "summary": "Document summary...",
+  "total_paragraphs": 25,
+  "success": true
+}
+```
+
+## Configuration
+
+Configure via `.env` file:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MAX_SUMMARY_SENTENCES` | Number of sentences in summary | 5 |
+| `APP_NAME` | Application name | OCR API |
+| `DEBUG` | Debug mode | True |
 
 ## API Documentation
 
@@ -109,6 +150,9 @@ Once running, visit:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
-## Model Information
+## Technology Stack
 
-This API uses [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR) from Hugging Face.
+- **FastAPI** - Web framework
+- **EasyOCR** - OCR engine (CPU-friendly)
+- **PyMuPDF** - PDF processing
+- **python-docx** - DOCX processing
