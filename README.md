@@ -6,11 +6,12 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **EasyOCR
 
 ```
 ├── app/
-│   └── OCR/
-│          ├── OCR.py          # Service logic (EasyOCR)
-│          ├── OCR_Route.py    # API routes
-│          └── OCR_Schema.py   # Pydantic schemas
-│       
+│   ├── VectorDatabase/
+│   │      ├── VectorDB.py          # Vector DB service logic
+│   │      ├── VectorDB_Route.py    # Vector DB API routes
+│   │      └── VectorDB_Schema.py   # Pydantic schemas
+│   └── __init__.py
+├── chroma_db/                 # ChromaDB persistent storage
 ├── main.py                    # FastAPI application
 ├── requirements.txt           # Python dependencies
 ├── Dockerfile                 # Docker configuration
@@ -27,7 +28,7 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **EasyOCR
 ## Installation
 
 ### Local Setup
-.
+
 1. Create a `.env` file:
    ```env
    APP_NAME=OCR API
@@ -57,6 +58,8 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **EasyOCR
 
 ## API Endpoints
 
+### OCR Endpoints
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Root endpoint |
@@ -65,6 +68,16 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **EasyOCR
 | `/api/v1/ocr/summarize-pdf` | POST | Summarize content from a PDF |
 | `/api/v1/ocr/summarize-txt` | POST | Summarize content from a text file |
 | `/api/v1/ocr/summarize-docx` | POST | Summarize content from a Word document |
+
+### Vector Database Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/vectordb/add-document` | POST | Add a document to the vector database (supports txt, pdf, docx, and images) |
+| `/api/v1/vectordb/query` | POST | Query the vector database for similar chunks |
+| `/api/v1/vectordb/delete` | DELETE | Delete a document from the vector database |
+| `/api/v1/vectordb/collections` | GET | List all collections |
+| `/api/v1/vectordb/collection/{name}` | GET | Get collection info |
 
 ## Usage Examples
 
@@ -134,6 +147,57 @@ curl -X POST "http://localhost:8000/api/v1/ocr/summarize-docx" \
 }
 ```
 
+### Add Document to Vector Database
+
+Supports: `.txt`, `.pdf`, `.docx`, `.png`, `.jpg`, `.jpeg`, `.bmp`, `.tiff`, `.webp`
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/vectordb/add-document" \
+  -F "file=@document.pdf" \
+  -F "collection_name=my_collection" \
+  -F "chunk_size=500" \
+  -F "chunk_overlap=50"
+```
+
+**Add an Image Document (OCR):**
+```bash
+curl -X POST "http://localhost:8000/api/v1/vectordb/add-document" \
+  -F "file=@screenshot.png" \
+  -F "collection_name=my_collection"
+```
+
+**Response:**
+```json
+{
+  "filename": "document.pdf",
+  "collection_name": "my_collection",
+  "total_chunks": 10,
+  "chunks": [...],
+  "success": true,
+  "message": "Successfully added 10 chunks to collection 'my_collection'"
+}
+```
+
+### Query Vector Database
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/vectordb/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "your search query", "collection_name": "my_collection", "top_k": 5}'
+```
+
+**Response:**
+```json
+{
+  "query": "your search query",
+  "answer": "AI-generated answer based on retrieved chunks...",
+  "collection_name": "my_collection",
+  "results": [...],
+  "total_results": 5,
+  "success": true
+}
+```
+
 ## Configuration
 
 Configure via `.env` file:
@@ -156,3 +220,7 @@ Once running, visit:
 - **EasyOCR** - OCR engine (CPU-friendly)
 - **PyMuPDF** - PDF processing
 - **python-docx** - DOCX processing
+- **ChromaDB** - Vector database for semantic search
+- **OpenAI** - AI-powered question answering
+- **Pillow** - Image processing
+- **NumPy** - Numerical operations

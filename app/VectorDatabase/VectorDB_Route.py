@@ -4,6 +4,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from typing import Optional
 import os
 import openai
+from io import BytesIO
+from PIL import Image
+import numpy as np
 from dotenv import load_dotenv
 from .VectorDB import VectorDBService
 from .VectorDB_Schema import (
@@ -29,6 +32,35 @@ router = APIRouter(prefix="/vectordb", tags=["Vector Database"])
 openai_client = None
 if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here":
     openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Initialize EasyOCR reader (lazy loading)
+_ocr_reader = None
+
+def get_ocr_reader():
+    """Get or initialize the EasyOCR reader."""
+    global _ocr_reader
+    if _ocr_reader is None:
+        import easyocr
+        _ocr_reader = easyocr.Reader(['en'], gpu=False)
+    return _ocr_reader
+
+def extract_text_from_image(image_bytes: bytes) -> str:
+    """Extract text from image using EasyOCR."""
+    try:
+        image = Image.open(BytesIO(image_bytes))
+        # Convert to RGB if necessary
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        image_np = np.array(image)
+        
+        reader = get_ocr_reader()
+        results = reader.readtext(image_np)
+        
+        # Extract text from results
+        extracted_text = "\n".join([result[1] for result in results])
+        return extracted_text
+    except Exception as e:
+        raise Exception(f"OCR extraction failed: {str(e)}")
 
 
 def generate_answer_with_openai(query: str, chunks: list) -> str:
@@ -73,10 +105,10 @@ async def add_document(
     """
     Upload a document and add it to the vector database with chunking.
     
-    Supports: .txt, .pdf, .docx files
+    Supports: .txt, .pdf, .docx, .png, .jpg, .jpeg, .bmp, .tiff, .webp files
     
     Args:
-        file: Uploaded file (txt, pdf, or docx)
+        file: Uploaded file (txt, pdf, docx, or image)
         collection_name: Name of the collection to store chunks
         chunk_size: Size of each text chunk in characters (100-5000)
         chunk_overlap: Overlap between consecutive chunks (0-500)
@@ -85,6 +117,10 @@ async def add_document(
         AddDocumentResponse with chunk information
     """
     filename = file.filename or "unknown"
+    filename_lower = filename.lower()
+    
+    # Supported image extensions
+    image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp')
     
     # Read file content
     try:
@@ -92,10 +128,10 @@ async def add_document(
         text = ""
         
         # Handle different file types
-        if filename.endswith('.txt') or (file.content_type and file.content_type == "text/plain"):
+        if filename_lower.endswith('.txt') or (file.content_type and file.content_type == "text/plain"):
             text = contents.decode('utf-8', errors='ignore')
             
-        elif filename.endswith('.pdf') or (file.content_type and file.content_type == "application/pdf"):
+        elif filename_lower.endswith('.pdf') or (file.content_type and file.content_type == "application/pdf"):
             import fitz
             pdf_document = fitz.open(stream=contents, filetype="pdf")
             text_parts = []
@@ -104,17 +140,20 @@ async def add_document(
             text = "\n".join(text_parts)
             pdf_document.close()
             
-        elif filename.endswith('.docx'):
+        elif filename_lower.endswith('.docx'):
             from docx import Document
-            from io import BytesIO
             doc = Document(BytesIO(contents))
             text_parts = [para.text for para in doc.paragraphs]
             text = "\n".join(text_parts)
+        
+        elif filename_lower.endswith(image_extensions) or (file.content_type and file.content_type.startswith("image/")):
+            # Extract text from image using OCR
+            text = extract_text_from_image(contents)
             
         else:
             raise HTTPException(
                 status_code=400, 
-                detail="Unsupported file type. Please upload .txt, .pdf, or .docx files."
+                detail="Unsupported file type. Please upload .txt, .pdf, .docx, or image files (.png, .jpg, .jpeg, .bmp, .tiff, .webp)."
             )
         
         if not text.strip():
