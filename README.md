@@ -18,7 +18,7 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **EasyOCR
 ├── .env                       # Environment variables
 └── README.md                  # This file
 ```
-
+.
 ## Requirements
 
 - **Python**: 3.10+
