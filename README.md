@@ -27,7 +27,7 @@ A FastAPI-based OCR (Optical Character Recognition) service powered by **EasyOCR
 ## Installation
 
 ### Local Setup
-
+.
 1. Create a `.env` file:
    ```env
    APP_NAME=OCR API
