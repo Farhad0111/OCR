@@ -63,24 +63,72 @@ def extract_text_from_image(image_bytes: bytes) -> str:
         raise Exception(f"OCR extraction failed: {str(e)}")
 
 
-def generate_answer_with_openai(query: str, chunks: list) -> str:
-    """Generate an answer using OpenAI based on retrieved chunks."""
+def generate_answer_with_openai(query: str, chunks: list, fallback_to_gpt: bool = True) -> dict:
+    """
+    Generate an answer using OpenAI based on retrieved chunks.
+    If no relevant content found and fallback_to_gpt is True, answer directly from GPT.
+    
+    Returns:
+        dict with 'answer', 'source' ('document' or 'gpt'), and 'found_in_docs' boolean
+    """
     if not openai_client:
-        return None
+        return {
+            "answer": None,
+            "source": None,
+            "found_in_docs": False
+        }
     
     # Build context from chunks
     context = "\n\n".join([chunk.get("content", "") for chunk in chunks])
     
-    if not context.strip():
-        return "No relevant information found in the documents."
+    # Check if we have meaningful content from documents
+    if not context.strip() or len(chunks) == 0:
+        if fallback_to_gpt:
+            # No document content found, fallback to GPT direct answer
+            try:
+                response = openai_client.chat.completions.create(
+                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a helpful assistant. Answer the user's question to the best of your knowledge. Be concise and informative."
+                        },
+                        {
+                            "role": "user",
+                            "content": query
+                        }
+                    ],
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                return {
+                    "answer": response.choices[0].message.content,
+                    "source": "gpt",
+                    "found_in_docs": False
+                }
+            except Exception as e:
+                return {
+                    "answer": f"Error generating answer: {str(e)}",
+                    "source": "error",
+                    "found_in_docs": False
+                }
+        else:
+            return {
+                "answer": "No relevant information found in the documents.",
+                "source": "none",
+                "found_in_docs": False
+            }
     
+    # We have document content, try to answer from it
     try:
         response = openai_client.chat.completions.create(
             model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant. Answer the user's question based ONLY on the provided context. Be concise and direct. If the answer is not clearly found in the context, say 'I cannot find this information in the provided documents.'"
+                    "content": """You are a helpful assistant. Answer the user's question based on the provided context. 
+Be concise and direct. If the answer is clearly found in the context, provide it.
+If the context does not contain relevant information to answer the question, respond with exactly: "NOT_FOUND_IN_DOCS" """
                 },
                 {
                     "role": "user",
@@ -88,11 +136,47 @@ def generate_answer_with_openai(query: str, chunks: list) -> str:
                 }
             ],
             temperature=0.2,
-            max_tokens=300
+            max_tokens=500
         )
-        return response.choices[0].message.content
+        
+        answer = response.choices[0].message.content
+        
+        # Check if GPT couldn't find the answer in documents
+        if "NOT_FOUND_IN_DOCS" in answer and fallback_to_gpt:
+            # Fallback to GPT direct answer
+            fallback_response = openai_client.chat.completions.create(
+                model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant. Answer the user's question to the best of your knowledge. Be concise and informative."
+                    },
+                    {
+                        "role": "user",
+                        "content": query
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=500
+            )
+            return {
+                "answer": fallback_response.choices[0].message.content,
+                "source": "gpt",
+                "found_in_docs": False
+            }
+        
+        return {
+            "answer": answer,
+            "source": "document",
+            "found_in_docs": True
+        }
+        
     except Exception as e:
-        return f"Error generating answer: {str(e)}"
+        return {
+            "answer": f"Error generating answer: {str(e)}",
+            "source": "error",
+            "found_in_docs": False
+        }
 
 
 @router.post("/add-document", response_model=AddDocumentResponse)
@@ -188,11 +272,15 @@ async def query_documents(request: QueryRequest):
     """
     Query the vector database for similar document chunks.
     
+    If relevant information is found in the documents, the answer is generated from them.
+    If no relevant information is found, the answer falls back to GPT model directly.
+    
     Args:
         request: QueryRequest with query text, collection name, and top_k
         
     Returns:
-        QueryResponse with matching chunks, similarity scores, and AI-generated answer
+        QueryResponse with matching chunks, similarity scores, AI-generated answer,
+        and source information (whether from document or GPT)
     """
     try:
         results = await VectorDBService.query_documents(
@@ -201,12 +289,14 @@ async def query_documents(request: QueryRequest):
             top_k=request.top_k
         )
         
-        # Generate AI answer using OpenAI
-        answer = generate_answer_with_openai(request.query, results)
+        # Generate AI answer using OpenAI (with GPT fallback if not found in docs)
+        answer_result = generate_answer_with_openai(request.query, results, fallback_to_gpt=True)
         
         return QueryResponse(
             query=request.query,
-            answer=answer,
+            answer=answer_result["answer"],
+            answer_source=answer_result["source"],
+            found_in_docs=answer_result["found_in_docs"],
             collection_name=request.collection_name,
             results=[QueryResult(**r) for r in results],
             total_results=len(results),

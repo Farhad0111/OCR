@@ -50,6 +50,8 @@ class QueryResponse(BaseModel):
     """Response schema for querying the vector database."""
     query: str
     answer: Optional[str] = None  # AI-generated answer
+    answer_source: Optional[str] = None  # 'document', 'gpt', or None
+    found_in_docs: bool = True  # Whether answer was found in documents
     collection_name: str
     results: List[QueryResult]
     total_results: int

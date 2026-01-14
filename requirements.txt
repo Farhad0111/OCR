@@ -26,3 +26,6 @@ huggingface_hub
 
 # OpenAI for AI-powered answers
 openai
+
+# HTTP client for testing
+requests
