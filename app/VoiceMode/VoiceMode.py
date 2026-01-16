@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class VoiceModeService:
     """Service class for Voice Mode operations with STT and RAG."""
     
@@ -172,3 +171,4 @@ If the context does not contain relevant information to answer the question, res
                 "answer": f"Error generating answer: {str(e)}",
                 "source": "error"
             }
+

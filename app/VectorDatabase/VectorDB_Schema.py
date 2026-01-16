@@ -73,9 +73,21 @@ class DeleteDocumentResponse(BaseModel):
     message: str
 
 
+class DocumentInfo(BaseModel):
+    """Information about a document in a collection."""
+    document_id: str
+    filename: str
+
+
+class CollectionDetail(BaseModel):
+    """Detailed information about a collection."""
+    collection_name: str
+    documents: List[DocumentInfo]
+
+
 class ListCollectionsResponse(BaseModel):
     """Response schema for listing collections."""
-    collections: List[str]
+    collections: List[CollectionDetail]
     total_collections: int
     success: bool
 

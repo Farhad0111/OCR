@@ -18,6 +18,8 @@ from .VectorDB_Schema import (
     DeleteDocumentRequest,
     DeleteDocumentResponse,
     ListCollectionsResponse,
+    CollectionDetail,
+    DocumentInfo,
     CollectionInfoResponse,
     QuestionAnswerRequest,
     QuestionAnswerResponse,
@@ -347,10 +349,10 @@ async def delete_document(request: DeleteDocumentRequest):
 @router.get("/collections", response_model=ListCollectionsResponse)
 async def list_collections():
     """
-    List all collections in the vector database.
+    List all collections in the vector database with document details.
     
     Returns:
-        ListCollectionsResponse with list of collection names
+        ListCollectionsResponse with list of collections including document_id and filename
     """
     try:
         collections = await VectorDBService.list_collections()

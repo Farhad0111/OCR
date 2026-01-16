@@ -95,7 +95,7 @@ Powered by **EasyOCR**, **OpenAI Whisper**, **ChromaDB**, and **GPT** - all CPU-
 | `/api/v1/vectordb/add-document` | POST | Add a document to the vector database (supports txt, pdf, docx, and images) |
 | `/api/v1/vectordb/query` | POST | Query the vector database for similar chunks with intelligent fallback to GPT |
 | `/api/v1/vectordb/delete` | DELETE | Delete a document from the vector database |
-| `/api/v1/vectordb/collections` | GET | List all collections |
+| `/api/v1/vectordb/collections` | GET | List all collections with document details (document_id and filename) |
 | `/api/v1/vectordb/collection/{name}` | GET | Get collection info |
 
 ### Voice Mode Endpoints (STT + RAG)
@@ -312,6 +312,50 @@ curl -X POST "http://localhost:8000/api/v1/voice/query" \
 - **Source Transparency**: Response indicates whether the answer came from documents or GPT
 - **Multi-format Support**: Accepts various audio formats (mp3, wav, m4a, ogg, flac, webm)
 - **Similarity Scores**: Each result includes relevance scores
+
+### List All Collections with Documents
+Get all collections with their associated documents, including document IDs and filenames.
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/vectordb/collections"
+```
+
+**Response:**
+```json
+{
+  "collections": [
+    {
+      "collection_name": "my_collection",
+      "documents": [
+        {
+          "document_id": "a1b2c3d4e5f6g7h8",
+          "filename": "document.pdf"
+        },
+        {
+          "document_id": "i9j0k1l2m3n4o5p6",
+          "filename": "notes.txt"
+        }
+      ]
+    },
+    {
+      "collection_name": "research_papers",
+      "documents": [
+        {
+          "document_id": "q7r8s9t0u1v2w3x4",
+          "filename": "paper1.pdf"
+        }
+      ]
+    }
+  ],
+  "total_collections": 2,
+  "success": true
+}
+```
+
+**Key Features:**
+- **Document Details**: Shows document_id and filename for each document in every collection
+- **Complete Overview**: View all collections and their contents in one request
+- **Easy Management**: Identify documents by their IDs for deletion or updates
 
 ### Voice Workflow
 ```

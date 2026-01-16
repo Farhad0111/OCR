@@ -402,18 +402,52 @@ class VectorDBService:
         return context.strip()
     
     @classmethod
-    async def list_collections(cls) -> List[str]:
+    async def list_collections(cls) -> List[dict]:
         """
-        List all collections in the database.
+        List all collections in the database with document details.
         
         Returns:
-            List of collection names
+            List of dictionaries containing collection name and documents with document_id and filename
         """
         if not cls._initialized:
             cls.initialize()
         
         collections = cls._client.list_collections()
-        return [col.name for col in collections]
+        result = []
+        
+        for col in collections:
+            # Get all documents in the collection
+            collection = cls._client.get_collection(name=col.name)
+            
+            # Get all documents from the collection
+            try:
+                all_data = collection.get()
+                
+                # Extract unique documents based on filename
+                documents_dict = {}
+                if all_data and all_data['ids']:
+                    for i, doc_id in enumerate(all_data['ids']):
+                        metadata = all_data['metadatas'][i] if all_data['metadatas'] else {}
+                        filename = metadata.get('filename', 'unknown')
+                        
+                        # Use filename as key to avoid duplicates
+                        if filename not in documents_dict:
+                            documents_dict[filename] = {
+                                'document_id': doc_id,
+                                'filename': filename
+                            }
+                
+                documents_list = list(documents_dict.values())
+                
+            except Exception:
+                documents_list = []
+            
+            result.append({
+                'collection_name': col.name,
+                'documents': documents_list
+            })
+        
+        return result
     
     @classmethod
     async def get_collection_info(cls, collection_name: str) -> dict:
